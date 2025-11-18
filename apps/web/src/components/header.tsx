@@ -25,7 +25,11 @@ export default function Header() {
         <NavigationMenu>
           <NavigationMenuList>
             {[
-              { label: "Users", to: "/users" as const, subject: "users" as const },
+              {
+                label: "Users",
+                to: "/users" as const,
+                subject: "users" as const,
+              },
               { label: "Todo", to: "/todo" as const, subject: "todo" as const },
             ]
               .filter((item) => can("read", item.subject))

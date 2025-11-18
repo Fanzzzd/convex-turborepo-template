@@ -1,8 +1,5 @@
 import { useAuthActions } from "@convex-dev/auth/react";
-import {
-  createFileRoute,
-  useNavigate,
-} from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/auth/useAuth";
 import { Button } from "@/components/ui/button";
@@ -13,13 +10,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
   Field,
   FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/login")({
   component: LoginComponent,
@@ -76,21 +73,10 @@ function LoginComponent() {
       (async () => {
         try {
           const fallback = firstAccessiblePath() ?? "/users";
-          type KnownTo =
-            | "/"
-            | "/login"
-            | "/users"
-            | "/todo"
-            | "/403";
+          type KnownTo = "/" | "/login" | "/users" | "/todo" | "/403";
           const isKnownTo = (p: unknown): p is KnownTo =>
             typeof p === "string" &&
-            [
-              "/",
-              "/login",
-              "/users",
-              "/todo",
-              "/403",
-            ].includes(p);
+            ["/", "/login", "/users", "/todo", "/403"].includes(p);
           const to = isKnownTo(search?.from) ? search.from : fallback;
           navigate({ to });
         } catch {
@@ -98,7 +84,13 @@ function LoginComponent() {
         }
       })();
     }
-  }, [justSignedIn, isAuthenticated, navigate, search?.from, firstAccessiblePath]);
+  }, [
+    justSignedIn,
+    isAuthenticated,
+    navigate,
+    search?.from,
+    firstAccessiblePath,
+  ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

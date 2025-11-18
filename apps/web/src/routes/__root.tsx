@@ -5,14 +5,16 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import Header from "@/components/header";
 import type { ConvexReactClient } from "convex/react";
+import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { Spinner } from "@/components/ui/spinner";
 import "../index.css";
 
-export const Route = createRootRouteWithContext<{ convex: ConvexReactClient }>()({
+export const Route = createRootRouteWithContext<{
+  convex: ConvexReactClient;
+}>()({
   component: RootComponent,
   notFoundComponent: () => (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
@@ -67,9 +69,7 @@ function RootComponent() {
         </div>
         <Toaster richColors />
       </ThemeProvider>
-      {import.meta.env.DEV && (
-        <TanStackRouterDevtools position="bottom-left" />
-      )}
+      {import.meta.env.DEV && <TanStackRouterDevtools position="bottom-left" />}
     </>
   );
 }

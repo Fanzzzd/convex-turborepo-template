@@ -1,8 +1,8 @@
+import { api } from "@acme/backend/convex/_generated/api";
 import type { Action, Subject } from "@acme/backend/convex/_shared/permissions";
 import { can } from "@acme/backend/convex/_shared/permissions";
 import { redirect } from "@tanstack/react-router";
 import type { ConvexReactClient } from "convex/react";
-import { api } from "@acme/backend/convex/_generated/api";
 
 type GuardArgs = {
   context: { convex: ConvexReactClient };

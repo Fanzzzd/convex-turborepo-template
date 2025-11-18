@@ -1,16 +1,14 @@
-import { useQuery } from "convex/react";
 import { api } from "@acme/backend/convex/_generated/api";
+import type { Doc } from "@acme/backend/convex/_generated/dataModel";
 import {
-  can as canFn,
   type Ability,
   type Action,
+  can as canFn,
   type Subject,
 } from "@acme/backend/convex/_shared/permissions";
-import type { Doc } from "@acme/backend/convex/_generated/dataModel";
-type NavigationRoute =
-  | "/users"
-  | "/todo"
-  | "/login";
+import { useQuery } from "convex/react";
+
+type NavigationRoute = "/users" | "/todo" | "/login";
 
 export function useAuth() {
   const session = useQuery(api.domains.users.api.getCurrentUserWithAbilities);
@@ -46,11 +44,13 @@ export function resolveFirstAccessiblePath(
       readable.add(subject);
     }
   }
-  const order: Array<{ subject: Subject; path: Exclude<NavigationRoute, "/login"> }> =
-    [
-      { subject: "users", path: "/users" },
-      { subject: "todo", path: "/todo" },
-    ];
+  const order: Array<{
+    subject: Subject;
+    path: Exclude<NavigationRoute, "/login">;
+  }> = [
+    { subject: "users", path: "/users" },
+    { subject: "todo", path: "/todo" },
+  ];
   for (const { subject, path } of order) {
     if (readable.has(subject)) return path;
   }

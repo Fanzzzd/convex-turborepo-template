@@ -88,4 +88,3 @@ export const deleteTodo = mutation({
     await ctx.db.delete(args.todoId);
   },
 });
-

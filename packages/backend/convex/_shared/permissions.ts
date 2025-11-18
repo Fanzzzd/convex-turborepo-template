@@ -3,9 +3,7 @@
 // Frontend and backend should import from here.
 
 export type Action = "read" | "write";
-export type Subject =
-  | "users"
-  | "todo";
+export type Subject = "users" | "todo";
 export type Ability = readonly [Action, Subject];
 
 export type Role = "user" | "admin";

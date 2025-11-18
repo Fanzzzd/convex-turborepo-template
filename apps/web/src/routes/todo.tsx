@@ -2,6 +2,9 @@ import { api } from "@acme/backend/convex/_generated/api";
 import type { Id } from "@acme/backend/convex/_generated/dataModel";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
+import { Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { guardAbility } from "@/auth/guard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,9 +25,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/todo")({
   beforeLoad: guardAbility("todo"),
@@ -200,9 +200,7 @@ function TodoComponent() {
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  {index < todos.length - 1 && (
-                    <Separator className="my-2" />
-                  )}
+                  {index < todos.length - 1 && <Separator className="my-2" />}
                 </div>
               ))
             )}
@@ -212,4 +210,3 @@ function TodoComponent() {
     </div>
   );
 }
-

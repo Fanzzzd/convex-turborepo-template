@@ -2,7 +2,6 @@ import { api } from "@acme/backend/convex/_generated/api";
 import type { Id } from "@acme/backend/convex/_generated/dataModel";
 import { createFileRoute } from "@tanstack/react-router";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { useAuth } from "@/auth/useAuth";
 import {
   Calendar,
   Mail,
@@ -14,6 +13,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { guardAbility } from "@/auth/guard";
+import { useAuth } from "@/auth/useAuth";
 import {
   AlertDialog,
   AlertDialogAction,

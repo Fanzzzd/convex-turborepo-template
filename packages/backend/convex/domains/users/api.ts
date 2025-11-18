@@ -104,10 +104,7 @@ export const createUser = action({
     email: v.string(),
     name: v.string(),
     password: v.string(),
-    role: v.union(
-      v.literal("admin"),
-      v.literal("user")
-    ),
+    role: v.union(v.literal("admin"), v.literal("user")),
   },
   handler: async (ctx, args) => {
     await requireAbility(ctx, "write", "users");
@@ -148,12 +145,7 @@ export const updateUser = mutation({
     userId: v.id("users"),
     name: v.optional(v.string()),
     email: v.optional(v.string()),
-    role: v.optional(
-      v.union(
-        v.literal("admin"),
-        v.literal("user")
-      )
-    ),
+    role: v.optional(v.union(v.literal("admin"), v.literal("user"))),
   },
   handler: async (ctx, args) => {
     await requireAbility(ctx, "write", "users");

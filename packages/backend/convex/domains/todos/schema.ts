@@ -11,4 +11,3 @@ export const tables = {
     .index("userId", ["userId"])
     .index("userId_completed", ["userId", "completed"]),
 };
-
