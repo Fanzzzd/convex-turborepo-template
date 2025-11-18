@@ -1,6 +1,6 @@
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
-import { ConvexReactClient } from "convex/react";
+import { ConvexReactClient, useConvexAuth } from "convex/react";
 import ReactDOM from "react-dom/client";
 import { Spinner } from "./components/ui/spinner";
 import { routeTree } from "./routeTree.gen";
@@ -26,10 +26,24 @@ declare module "@tanstack/react-router" {
   }
 }
 
+function AuthReadyRouter() {
+  const { isLoading } = useConvexAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex h-svh items-center justify-center">
+        <Spinner className="size-6" />
+      </div>
+    );
+  }
+
+  return <RouterProvider router={router} />;
+}
+
 function App() {
   return (
     <ConvexAuthProvider client={convex}>
-      <RouterProvider router={router} />
+      <AuthReadyRouter />
     </ConvexAuthProvider>
   );
 }
