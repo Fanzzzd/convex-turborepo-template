@@ -1,0 +1,24 @@
+{
+  "name": "@acme/backend",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "convex dev --local",
+    "dev:setup": "convex dev --configure --until-success",
+    "lint": "biome check .",
+    "seed": "convex run seed:init"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  },
+  "dependencies": {
+    "@convex-dev/auth": "catalog:",
+    "@convex-dev/better-auth": "^0.9.7",
+    "@convex-dev/resend": "catalog:",
+    "better-auth": "1.3.34",
+    "convex": "catalog:"
+  }
+}
