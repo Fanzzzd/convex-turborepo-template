@@ -1,5 +1,5 @@
-import { useAuthActions } from "@convex-dev/auth/react";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { useAuth as useWorkOSAuth } from "@workos-inc/authkit-react";
 import { useAuth } from "@/auth/useAuth";
 import { Button } from "./ui/button";
 import {
@@ -11,7 +11,7 @@ import {
 
 export default function Header() {
   const { isAuthenticated, can } = useAuth();
-  const { signOut } = useAuthActions();
+  const { signOut } = useWorkOSAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {

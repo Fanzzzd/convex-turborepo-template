@@ -1,5 +1,6 @@
-import { ConvexAuthProvider } from "@convex-dev/auth/react";
+import { ConvexProviderWithAuthKit } from "@convex-dev/workos";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
+import { AuthKitProvider, useAuth } from "@workos-inc/authkit-react";
 import { ConvexReactClient, useConvexAuth } from "convex/react";
 import ReactDOM from "react-dom/client";
 import { Spinner } from "./components/ui/spinner";
@@ -42,9 +43,14 @@ function AuthReadyRouter() {
 
 function App() {
   return (
-    <ConvexAuthProvider client={convex}>
-      <AuthReadyRouter />
-    </ConvexAuthProvider>
+    <AuthKitProvider
+      clientId={import.meta.env.VITE_WORKOS_CLIENT_ID}
+      redirectUri={import.meta.env.VITE_WORKOS_REDIRECT_URI}
+    >
+      <ConvexProviderWithAuthKit client={convex} useAuth={useAuth}>
+        <AuthReadyRouter />
+      </ConvexProviderWithAuthKit>
+    </AuthKitProvider>
   );
 }
 

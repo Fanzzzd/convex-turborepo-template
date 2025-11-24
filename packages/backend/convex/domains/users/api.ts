@@ -25,12 +25,16 @@ import { UserRole } from "./schema";
 export const getCurrentUserWithAbilities = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       return null;
     }
 
-    const user = await ctx.db.get(userId);
+    const user = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", identity.email))
+      .first();
+
     if (!user) {
       return null;
     }

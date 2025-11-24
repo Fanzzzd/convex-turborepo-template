@@ -1,7 +1,8 @@
-import { useAuthActions } from "@convex-dev/auth/react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useAuth as useWorkOSAuth } from "@workos-inc/authkit-react";
+import { AlertCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useAuth } from "@/auth/useAuth";
+import { useAuth as useConvexAuth } from "@/auth/useAuth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,163 +11,65 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/login")({
   component: LoginComponent,
 });
 
-function mapAuthErrorToLoginMessage(error: unknown): string {
-  const fallback = "Login failed";
-  if (!error) return fallback;
-  const anyErr = error as { message?: string; code?: string; name?: string };
-  const rawMessage = typeof anyErr?.message === "string" ? anyErr.message : "";
-  const message = rawMessage.toLowerCase();
-  const code = (anyErr?.code ?? "").toString().toLowerCase();
-
-  const invalidCred =
-    code.includes("invalid_credentials") ||
-    message.includes("invalid email or password") ||
-    message.includes("wrong password") ||
-    message.includes("incorrect password") ||
-    message.includes("user not found") ||
-    message.includes("no user") ||
-    message.includes("account not found") ||
-    (message.includes("invalid") &&
-      (message.includes("credential") ||
-        message.includes("password") ||
-        message.includes("email")));
-  if (invalidCred) return "Invalid email or password";
-
-  const rateLimited =
-    message.includes("too many") ||
-    message.includes("rate limit") ||
-    code.includes("rate_limit");
-  if (rateLimited) return "Too many attempts, please try again later";
-
-  if (message.includes("network"))
-    return "Network error, please try again later";
-
-  return fallback;
-}
-
 function LoginComponent() {
   const navigate = useNavigate();
+  const {
+    user: workosUser,
+    signIn,
+    isLoading: workosLoading,
+  } = useWorkOSAuth();
+  const { isAuthenticated, isLoading: convexLoading } = useConvexAuth();
   const search = Route.useSearch() as { from?: string };
-  const { signIn } = useAuthActions();
-  const { isAuthenticated, firstAccessiblePath } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [justSignedIn, setJustSignedIn] = useState(false);
+  const [showError, setShowError] = useState(false);
 
-  // Redirect after authentication state is confirmed
   useEffect(() => {
-    if (justSignedIn && isAuthenticated) {
-      (async () => {
-        try {
-          const fallback = firstAccessiblePath() ?? "/users";
-          type KnownTo = "/" | "/login" | "/users" | "/todo" | "/403";
-          const isKnownTo = (p: unknown): p is KnownTo =>
-            typeof p === "string" &&
-            ["/", "/login", "/users", "/todo", "/403"].includes(p);
-          const to = isKnownTo(search?.from) ? search.from : fallback;
-          navigate({ to });
-        } catch {
-          navigate({ to: "/users" });
-        }
-      })();
+    if (workosUser) {
+      if (isAuthenticated) {
+        const fallback = "/users";
+        type KnownTo = "/" | "/login" | "/users" | "/todo" | "/403";
+        const isKnownTo = (p: unknown): p is KnownTo =>
+          typeof p === "string" &&
+          ["/", "/login", "/users", "/todo", "/403"].includes(p);
+        const to = isKnownTo(search?.from) ? search.from : fallback;
+        navigate({ to });
+      } else if (!convexLoading) {
+        setShowError(true);
+      }
     }
-  }, [
-    justSignedIn,
-    isAuthenticated,
-    navigate,
-    search?.from,
-    firstAccessiblePath,
-  ]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      await signIn("password", {
-        email,
-        password,
-        flow: "signIn",
-      });
-
-      // Mark as signed in to trigger the useEffect
-      setJustSignedIn(true);
-      // Note: isLoading stays true until navigation happens
-    } catch (err) {
-      console.error("[Login] signIn error", err);
-      setError(mapAuthErrorToLoginMessage(err));
-      setIsLoading(false);
-      setJustSignedIn(false);
-    }
-  };
+  }, [workosUser, isAuthenticated, convexLoading, navigate, search?.from]);
 
   return (
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-sm space-y-4">
+        {showError && (
+          <div className="bg-destructive/15 text-destructive p-3 rounded-md flex items-center gap-2 text-sm">
+            <AlertCircle className="h-4 w-4" />
+            <span>
+              Your account was not found in the system. Please contact an
+              administrator.
+            </span>
+          </div>
+        )}
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Login to your account</CardTitle>
+            <CardTitle className="text-2xl">Login</CardTitle>
             <CardDescription>
-              Enter your email below to login to your account
+              Sign in to your account using WorkOS
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit}>
-              <FieldGroup className="gap-4">
-                <Field data-invalid={!!error}>
-                  <FieldLabel htmlFor="email">Email</FieldLabel>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="m@example.com"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      setError(null);
-                    }}
-                    required
-                    disabled={isLoading}
-                    aria-invalid={!!error}
-                    autoComplete="email"
-                  />
-                  {error && <FieldError>{error}</FieldError>}
-                </Field>
-                <Field data-invalid={!!error}>
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      setError(null);
-                    }}
-                    required
-                    disabled={isLoading}
-                    aria-invalid={!!error}
-                    autoComplete="current-password"
-                  />
-                </Field>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Logging in..." : "Login"}
-                </Button>
-              </FieldGroup>
-            </form>
+            <Button
+              className="w-full"
+              onClick={() => signIn()}
+              disabled={workosLoading}
+            >
+              {workosLoading ? "Loading..." : "Sign in with WorkOS"}
+            </Button>
           </CardContent>
         </Card>
       </div>
