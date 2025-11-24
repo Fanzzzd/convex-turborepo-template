@@ -1,23 +1,28 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError } from "convex/values";
 import { api } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import type { ActionCtx, MutationCtx, QueryCtx } from "../_generated/server";
+import { authComponent } from "../auth";
 import type { Ability, Action, Role, Subject } from "./permissions";
 import { abilitiesFromRoles, can } from "./permissions";
 
 type Ctx = QueryCtx | MutationCtx | ActionCtx;
 
 export async function requireUser(ctx: Ctx): Promise<Doc<"users">> {
-  // Query/Mutation contexts expose db; Action context does not.
   if ("db" in ctx) {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new ConvexError("Not authenticated");
-    const user = await ctx.db.get(userId);
-    if (!user) throw new ConvexError("User not found");
+    const authUser = await authComponent.getAuthUser(ctx);
+    if (!authUser) throw new ConvexError("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", authUser.email))
+      .unique();
+
+    if (!user) {
+      throw new ConvexError("User not found in application database");
+    }
     return user;
   }
-  // Action context path
   const session = await ctx.runQuery(
     api.domains.users.api.getCurrentUserWithAbilities,
     {}

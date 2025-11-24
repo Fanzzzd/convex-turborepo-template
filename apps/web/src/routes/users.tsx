@@ -1,7 +1,7 @@
 import { api } from "@acme/backend/convex/_generated/api";
 import type { Id } from "@acme/backend/convex/_generated/dataModel";
 import { createFileRoute } from "@tanstack/react-router";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import {
   Calendar,
   Mail,
@@ -129,12 +129,7 @@ const getInitials = (name: string | undefined, email: string | undefined) => {
 function UsersComponent() {
   const { currentUser } = useAuth();
   const users = useQuery(api.domains.users.api.getAllUsers);
-  const createUser = useAction(api.domains.users.api.createUser);
   const updateUser = useMutation(api.domains.users.api.updateUser);
-  const deleteUser = useAction(api.domains.users.api.deleteUser);
-  const deactivateUser = useAction(api.domains.users.api.deactivateUser);
-  const activateUser = useAction(api.domains.users.api.activateUser);
-  const resetPassword = useAction(api.domains.users.api.resetPassword);
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -219,8 +214,7 @@ function UsersComponent() {
 
     setIsCreating(true);
     try {
-      await createUser(createForm);
-      toast.success("User created successfully");
+      toast.error("User creation is temporarily disabled during migration.");
       setCreateDialogOpen(false);
       setCreateForm({ name: "", email: "", password: "", role: "user" });
       setCreateErrors({});
@@ -288,13 +282,7 @@ function UsersComponent() {
 
     setIsResetting(true);
     try {
-      await resetPassword({
-        userId: selectedUser._id,
-        newPassword: resetForm.password,
-      });
-      toast.success(
-        "Password reset successfully. The user will be signed out."
-      );
+      toast.error("Password reset is temporarily disabled during migration.");
       setResetDialogOpen(false);
       setSelectedUser(null);
       setResetErrors({});
@@ -313,8 +301,7 @@ function UsersComponent() {
 
     setIsDeleting(true);
     try {
-      await deleteUser({ userId: selectedUser._id });
-      toast.success("User deleted successfully");
+      toast.error("User deletion is temporarily disabled during migration.");
       setDeleteDialogOpen(false);
       setSelectedUser(null);
     } catch (error) {
@@ -500,8 +487,9 @@ function UsersComponent() {
                               <DropdownMenuItem
                                 onClick={async () => {
                                   try {
-                                    await activateUser({ userId: user._id });
-                                    toast.success("User activated");
+                                    toast.error(
+                                      "User activation is temporarily disabled."
+                                    );
                                   } catch (e) {
                                     toast.error(
                                       e instanceof Error
@@ -517,8 +505,9 @@ function UsersComponent() {
                               <DropdownMenuItem
                                 onClick={async () => {
                                   try {
-                                    await deactivateUser({ userId: user._id });
-                                    toast.success("User deactivated");
+                                    toast.error(
+                                      "User deactivation is temporarily disabled."
+                                    );
                                   } catch (e) {
                                     toast.error(
                                       e instanceof Error

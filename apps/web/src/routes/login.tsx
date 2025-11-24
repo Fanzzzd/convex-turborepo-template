@@ -1,4 +1,3 @@
-import { useAuthActions } from "@convex-dev/auth/react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/auth/useAuth";
@@ -17,80 +16,36 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { authClient } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/login")({
   component: LoginComponent,
 });
 
-function mapAuthErrorToLoginMessage(error: unknown): string {
-  const fallback = "Login failed";
-  if (!error) return fallback;
-  const anyErr = error as { message?: string; code?: string; name?: string };
-  const rawMessage = typeof anyErr?.message === "string" ? anyErr.message : "";
-  const message = rawMessage.toLowerCase();
-  const code = (anyErr?.code ?? "").toString().toLowerCase();
-
-  const invalidCred =
-    code.includes("invalid_credentials") ||
-    message.includes("invalid email or password") ||
-    message.includes("wrong password") ||
-    message.includes("incorrect password") ||
-    message.includes("user not found") ||
-    message.includes("no user") ||
-    message.includes("account not found") ||
-    (message.includes("invalid") &&
-      (message.includes("credential") ||
-        message.includes("password") ||
-        message.includes("email")));
-  if (invalidCred) return "Invalid email or password";
-
-  const rateLimited =
-    message.includes("too many") ||
-    message.includes("rate limit") ||
-    code.includes("rate_limit");
-  if (rateLimited) return "Too many attempts, please try again later";
-
-  if (message.includes("network"))
-    return "Network error, please try again later";
-
-  return fallback;
-}
-
 function LoginComponent() {
   const navigate = useNavigate();
   const search = Route.useSearch() as { from?: string };
-  const { signIn } = useAuthActions();
   const { isAuthenticated, firstAccessiblePath } = useAuth();
+
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [justSignedIn, setJustSignedIn] = useState(false);
 
-  // Redirect after authentication state is confirmed
+  // Redirect if already authenticated
   useEffect(() => {
-    if (justSignedIn && isAuthenticated) {
-      (async () => {
-        try {
-          const fallback = firstAccessiblePath() ?? "/users";
-          type KnownTo = "/" | "/login" | "/users" | "/todo" | "/403";
-          const isKnownTo = (p: unknown): p is KnownTo =>
-            typeof p === "string" &&
-            ["/", "/login", "/users", "/todo", "/403"].includes(p);
-          const to = isKnownTo(search?.from) ? search.from : fallback;
-          navigate({ to });
-        } catch {
-          navigate({ to: "/users" });
-        }
-      })();
+    if (isAuthenticated) {
+      const fallback = firstAccessiblePath() ?? "/users";
+      type KnownTo = "/" | "/login" | "/users" | "/todo" | "/403";
+      const isKnownTo = (p: unknown): p is KnownTo =>
+        typeof p === "string" &&
+        ["/", "/login", "/users", "/todo", "/403"].includes(p);
+      const to = isKnownTo(search?.from) ? search.from : fallback;
+      navigate({ to });
     }
-  }, [
-    justSignedIn,
-    isAuthenticated,
-    navigate,
-    search?.from,
-    firstAccessiblePath,
-  ]);
+  }, [isAuthenticated, navigate, search?.from, firstAccessiblePath]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,20 +53,25 @@ function LoginComponent() {
     setError(null);
 
     try {
-      await signIn("password", {
-        email,
-        password,
-        flow: "signIn",
-      });
-
-      // Mark as signed in to trigger the useEffect
-      setJustSignedIn(true);
-      // Note: isLoading stays true until navigation happens
+      if (isSignUp) {
+        const { error } = await authClient.signUp.email({
+          email,
+          password,
+          name,
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await authClient.signIn.email({
+          email,
+          password,
+        });
+        if (error) throw error;
+      }
+      // Success - the useEffect will handle redirect once isAuthenticated becomes true
     } catch (err) {
-      console.error("[Login] signIn error", err);
-      setError(mapAuthErrorToLoginMessage(err));
+      console.error("[Login] error", err);
+      setError(err instanceof Error ? err.message : "Authentication failed");
       setIsLoading(false);
-      setJustSignedIn(false);
     }
   };
 
@@ -120,14 +80,32 @@ function LoginComponent() {
       <div className="w-full max-w-sm">
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Login to your account</CardTitle>
+            <CardTitle className="text-2xl">
+              {isSignUp ? "Create an account" : "Login to your account"}
+            </CardTitle>
             <CardDescription>
-              Enter your email below to login to your account
+              {isSignUp
+                ? "Enter your details below to create your account"
+                : "Enter your email below to login to your account"}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit}>
               <FieldGroup className="gap-4">
+                {isSignUp && (
+                  <Field data-invalid={!!error}>
+                    <FieldLabel htmlFor="name">Name</FieldLabel>
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="John Doe"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      disabled={isLoading}
+                    />
+                  </Field>
+                )}
                 <Field data-invalid={!!error}>
                   <FieldLabel htmlFor="email">Email</FieldLabel>
                   <Input
@@ -141,10 +119,8 @@ function LoginComponent() {
                     }}
                     required
                     disabled={isLoading}
-                    aria-invalid={!!error}
                     autoComplete="email"
                   />
-                  {error && <FieldError>{error}</FieldError>}
                 </Field>
                 <Field data-invalid={!!error}>
                   <FieldLabel htmlFor="password">Password</FieldLabel>
@@ -158,13 +134,32 @@ function LoginComponent() {
                     }}
                     required
                     disabled={isLoading}
-                    aria-invalid={!!error}
-                    autoComplete="current-password"
+                    autoComplete={
+                      isSignUp ? "new-password" : "current-password"
+                    }
                   />
                 </Field>
+
+                {error && <FieldError>{error}</FieldError>}
+
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Logging in..." : "Login"}
+                  {isLoading ? "Loading..." : isSignUp ? "Sign Up" : "Login"}
                 </Button>
+
+                <div className="text-center text-sm">
+                  <button
+                    type="button"
+                    className="underline hover:text-primary"
+                    onClick={() => {
+                      setIsSignUp(!isSignUp);
+                      setError(null);
+                    }}
+                  >
+                    {isSignUp
+                      ? "Already have an account? Login"
+                      : "Don't have an account? Sign Up"}
+                  </button>
+                </div>
               </FieldGroup>
             </form>
           </CardContent>

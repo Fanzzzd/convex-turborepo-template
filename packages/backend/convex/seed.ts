@@ -1,7 +1,7 @@
-import { createAccount } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import { internalAction } from "./_generated/server";
+import { authComponent, createAuth } from "./auth";
 import { UserRole } from "./domains/users/schema";
 
 // Seed the default accounts. Idempotent.
@@ -21,9 +21,10 @@ export const init = internalAction({
 
     const results: Array<{
       email: string;
-      userId: string | null;
       skipped: boolean;
     }> = [];
+
+    const { auth, headers } = await authComponent.getAuth(createAuth, ctx);
 
     for (const t of targets) {
       const existing = await ctx.runQuery(
@@ -35,22 +36,40 @@ export const init = internalAction({
       if (existing) {
         results.push({
           email: t.email,
-          userId: existing._id ? String(existing._id) : null,
           skipped: true,
         });
         continue;
       }
 
-      const { user } = await createAccount(ctx, {
-        provider: "password",
-        account: { id: t.email, secret: PASSWORD },
-        profile: { email: t.email, name: t.name, role: t.role },
-        shouldLinkViaEmail: false,
-        shouldLinkViaPhone: false,
+      await auth.api.signUpEmail({
+        body: {
+          email: t.email,
+          password: PASSWORD,
+          name: t.name,
+        },
+        headers,
       });
+
+      // Update role after creation (trigger sets default role)
+      const user = await ctx.runQuery(
+        internal.domains.users.api.findUserByEmailInternal,
+        {
+          email: t.email,
+        }
+      );
+
+      if (user) {
+        await ctx.runMutation(
+          internal.domains.users.api.internalUpdateUserRole,
+          {
+            userId: user._id,
+            role: t.role,
+          }
+        );
+      }
+
       results.push({
         email: t.email,
-        userId: String(user._id),
         skipped: false,
       });
     }

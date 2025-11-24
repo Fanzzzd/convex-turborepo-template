@@ -1,11 +1,18 @@
-import { ConvexAuthProvider } from "@convex-dev/auth/react";
+import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { ConvexReactClient, useConvexAuth } from "convex/react";
 import ReactDOM from "react-dom/client";
 import { Spinner } from "./components/ui/spinner";
+import { authClient } from "./lib/auth-client";
 import { routeTree } from "./routeTree.gen";
 
-const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
+const convex = new ConvexReactClient(
+  import.meta.env.VITE_CONVEX_URL as string,
+  {
+    // Optionally pause queries until the user is authenticated
+    expectAuth: true,
+  }
+);
 
 const router = createRouter({
   routeTree: routeTree,
@@ -42,9 +49,9 @@ function AuthReadyRouter() {
 
 function App() {
   return (
-    <ConvexAuthProvider client={convex}>
+    <ConvexBetterAuthProvider client={convex} authClient={authClient}>
       <AuthReadyRouter />
-    </ConvexAuthProvider>
+    </ConvexBetterAuthProvider>
   );
 }
 

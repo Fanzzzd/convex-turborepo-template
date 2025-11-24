@@ -1,13 +1,6 @@
-import {
-  createAccount,
-  getAuthUserId,
-  invalidateSessions,
-} from "@convex-dev/auth/server";
-import type { WithoutSystemFields } from "convex/server";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { internal } from "../../_generated/api";
-import type { Doc } from "../../_generated/dataModel";
 import {
   action,
   internalMutation,
@@ -18,19 +11,24 @@ import {
 import { requireAbility } from "../../_shared/auth";
 import type { Ability, Role } from "../../_shared/permissions";
 import { abilitiesFromRoles } from "../../_shared/permissions";
+import { authComponent } from "../../auth";
 // Permission checks for queries/mutations are enforced via _shared/auth.
-import { UserRole } from "./schema";
+import type { UserRole } from "./schema";
 
 // Get current user with computed abilities (returns null if unauthenticated)
 export const getCurrentUserWithAbilities = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    const authUser = await authComponent.getAuthUser(ctx);
+    if (!authUser) {
       return null;
     }
 
-    const user = await ctx.db.get(userId);
+    const user = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", authUser.email))
+      .unique();
+
     if (!user) {
       return null;
     }
@@ -98,47 +96,6 @@ export const getUserById = query({
   },
 });
 
-// Create a new user and auth account (admin only)
-export const createUser = action({
-  args: {
-    email: v.string(),
-    name: v.string(),
-    password: v.string(),
-    role: v.union(v.literal("admin"), v.literal("user")),
-  },
-  handler: async (ctx, args) => {
-    await requireAbility(ctx, "write", "users");
-
-    // Prevent duplicates on existing users table
-    const existing = await ctx.runQuery(
-      internal.domains.users.api.findUserByEmailInternal,
-      {
-        email: args.email,
-      }
-    );
-    if (existing) {
-      throw new ConvexError("User with this email already exists");
-    }
-
-    // Create account + user using Convex Auth (Password provider)
-    const profile: WithoutSystemFields<Doc<"users">> = {
-      email: args.email,
-      name: args.name,
-      role: args.role as UserRole,
-    };
-
-    const { user } = await createAccount(ctx, {
-      provider: "password",
-      account: { id: args.email, secret: args.password },
-      profile,
-      shouldLinkViaEmail: false,
-      shouldLinkViaPhone: false,
-    });
-
-    return user._id;
-  },
-});
-
 // Update user information (admin only)
 export const updateUser = mutation({
   args: {
@@ -169,28 +126,6 @@ export const updateUser = mutation({
       if (existing && existing._id !== userId) {
         throw new ConvexError("Email already in use");
       }
-      // Prevent conflicting auth account for the new email
-      const conflictingAccount = await ctx.db
-        .query("authAccounts")
-        .withIndex("providerAndAccountId", (q) =>
-          q.eq("provider", "password").eq("providerAccountId", newEmail)
-        )
-        .first();
-      if (conflictingAccount && conflictingAccount.userId !== userId) {
-        throw new ConvexError("Email already linked to another account");
-      }
-      // Keep password provider account in sync with new email
-      const passwordAccount = await ctx.db
-        .query("authAccounts")
-        .withIndex("userIdAndProvider", (q) =>
-          q.eq("userId", userId).eq("provider", "password")
-        )
-        .first();
-      if (passwordAccount) {
-        await ctx.db.patch(passwordAccount._id, {
-          providerAccountId: newEmail,
-        });
-      }
     }
 
     // Build the patch object with proper typing
@@ -211,63 +146,6 @@ export const updateUser = mutation({
   },
 });
 
-// Internal mutation to cascade delete user-related docs (called from action)
-export const deleteUserCascade = internalMutation({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
-    // 1) Verification codes for each account
-    const accounts = await ctx.db
-      .query("authAccounts")
-      .withIndex("userIdAndProvider", (q) => q.eq("userId", args.userId))
-      .collect();
-    for (const account of accounts) {
-      const codes = await ctx.db
-        .query("authVerificationCodes")
-        .withIndex("accountId", (q) => q.eq("accountId", account._id))
-        .collect();
-      for (const code of codes) {
-        await ctx.db.delete(code._id);
-      }
-    }
-
-    // 2) Accounts
-    for (const account of accounts) {
-      await ctx.db.delete(account._id);
-    }
-
-    // 3) Finally, delete the user
-    await ctx.db.delete(args.userId);
-  },
-});
-
-// Delete user (admin only) — invalidate sessions via official API then cascade delete
-export const deleteUser = action({
-  args: {
-    userId: v.id("users"),
-  },
-  handler: async (ctx, args) => {
-    await requireAbility(ctx, "write", "users");
-    const currentUserId = await getAuthUserId(ctx);
-    if (!currentUserId) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    // Prevent admin from deleting themselves
-    if (currentUserId === args.userId) {
-      throw new ConvexError("You cannot delete your own account");
-    }
-
-    // 1) Invalidate sessions (official API handles refresh tokens)
-    await invalidateSessions(ctx, { userId: args.userId });
-    // 2) Cascade delete accounts, codes, and the user
-    await ctx.runMutation(internal.domains.users.api.deleteUserCascade, {
-      userId: args.userId,
-    });
-
-    return { success: true } as const;
-  },
-});
-
 // Internal mutation: set `isActive` flag
 export const setUserActivation = internalMutation({
   args: { userId: v.id("users"), isActive: v.boolean() },
@@ -278,27 +156,15 @@ export const setUserActivation = internalMutation({
   },
 });
 
-// Deactivate a user (soft-delete). Admin only.
-export const deactivateUser = action({
-  args: { userId: v.id("users") },
+export const internalUpdateUserRole = internalMutation({
+  args: {
+    userId: v.id("users"),
+    role: v.union(v.literal("admin"), v.literal("user")),
+  },
   handler: async (ctx, args) => {
-    await requireAbility(ctx, "write", "users");
-    const currentUserId = await getAuthUserId(ctx);
-    if (!currentUserId) {
-      throw new ConvexError("Not authenticated");
-    }
-    if (currentUserId === args.userId) {
-      throw new ConvexError("You cannot deactivate your own account");
-    }
-
-    // Sign out all sessions
-    await invalidateSessions(ctx, { userId: args.userId });
-    // Set inactive flag
-    await ctx.runMutation(internal.domains.users.api.setUserActivation, {
-      userId: args.userId,
-      isActive: false,
-    });
-    return { success: true } as const;
+    const user = await ctx.db.get(args.userId);
+    if (!user) throw new ConvexError("User not found");
+    await ctx.db.patch(args.userId, { role: args.role as UserRole });
   },
 });
 
@@ -312,124 +178,5 @@ export const activateUser = action({
       isActive: true,
     });
     return { success: true } as const;
-  },
-});
-
-// Internal mutation to remove existing password account and its verification codes
-export const removePasswordAccount = internalMutation({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
-    const existing = await ctx.db
-      .query("authAccounts")
-      .withIndex("userIdAndProvider", (q) =>
-        q.eq("userId", args.userId).eq("provider", "password")
-      )
-      .first();
-    if (!existing) return;
-    const codes = await ctx.db
-      .query("authVerificationCodes")
-      .withIndex("accountId", (q) => q.eq("accountId", existing._id))
-      .collect();
-    for (const c of codes) {
-      await ctx.db.delete(c._id);
-    }
-    await ctx.db.delete(existing._id);
-  },
-});
-
-// Reset a user's password (admin only) and invalidate all their sessions.
-export const resetPassword = action({
-  args: { userId: v.id("users"), newPassword: v.string() },
-  handler: async (ctx, { userId, newPassword }) => {
-    await requireAbility(ctx, "write", "users");
-    if (newPassword.length < 8) {
-      throw new ConvexError("Password must be at least 8 characters");
-    }
-
-    const user = await ctx.runQuery(
-      internal.domains.users.api.getUserByIdInternal,
-      { userId }
-    );
-    if (!user) {
-      throw new ConvexError("User not found");
-    }
-    if (!user.email) {
-      throw new ConvexError(
-        "User email is required for password authentication"
-      );
-    }
-
-    // Remove existing password provider account (and its verification codes) to avoid conflicts
-    await ctx.runMutation(internal.domains.users.api.removePasswordAccount, {
-      userId,
-    });
-
-    // Re-create the password account with the same email and the new password
-    await createAccount(ctx, {
-      provider: "password",
-      account: { id: user.email, secret: newPassword },
-      profile: { email: user.email, name: user.name, role: user.role },
-      shouldLinkViaEmail: true,
-      shouldLinkViaPhone: false,
-    });
-
-    // Force sign out of all sessions for the target user
-    await invalidateSessions(ctx, { userId });
-
-    return { success: true } as const;
-  },
-});
-
-// Seed initial accounts for admin and user roles.
-// Safe to run multiple times; existing users are skipped.
-export const seedInitialUsers = action({
-  args: {},
-  handler: async (ctx) => {
-    const PASSWORD = "12345678";
-    const targets = [
-      { email: "admin@example.com", name: "Admin", role: UserRole.ADMIN },
-      { email: "user@example.com", name: "User", role: UserRole.USER },
-    ] as const;
-
-    const results: Array<{
-      email: string;
-      userId: string | null;
-      skipped: boolean;
-    }> = [];
-
-    for (const t of targets) {
-      const existing = await ctx.runQuery(
-        internal.domains.users.api.findUserByEmailInternal,
-        {
-          email: t.email,
-        }
-      );
-      if (existing) {
-        results.push({
-          email: t.email,
-          userId: existing._id as unknown as string,
-          skipped: true,
-        });
-        continue;
-      }
-
-      const { user } = await createAccount(ctx, {
-        provider: "password",
-        account: { id: t.email, secret: PASSWORD },
-        profile: { email: t.email, name: t.name, role: t.role },
-        shouldLinkViaEmail: false,
-        shouldLinkViaPhone: false,
-      });
-      results.push({
-        email: t.email,
-        userId: user._id as unknown as string,
-        skipped: false,
-      });
-    }
-
-    return {
-      created: results.filter((r) => !r.skipped),
-      skipped: results.filter((r) => r.skipped),
-    } as const;
   },
 });

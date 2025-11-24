@@ -1,4 +1,3 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "../../_generated/server";
 import { requireAbility } from "../../_shared/auth";
@@ -7,14 +6,10 @@ import { requireAbility } from "../../_shared/auth";
 export const getTodos = query({
   args: {},
   handler: async (ctx) => {
-    await requireAbility(ctx, "read", "todo");
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new ConvexError("Not authenticated");
-    }
+    const user = await requireAbility(ctx, "read", "todo");
     return await ctx.db
       .query("todos")
-      .withIndex("userId", (q) => q.eq("userId", userId))
+      .withIndex("userId", (q) => q.eq("userId", user._id))
       .order("desc")
       .collect();
   },
@@ -26,18 +21,14 @@ export const createTodo = mutation({
     text: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireAbility(ctx, "write", "todo");
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new ConvexError("Not authenticated");
-    }
+    const user = await requireAbility(ctx, "write", "todo");
     if (!args.text.trim()) {
       throw new ConvexError("Todo text cannot be empty");
     }
     return await ctx.db.insert("todos", {
       text: args.text.trim(),
       completed: false,
-      userId,
+      userId: user._id,
       createdAt: Date.now(),
     });
   },
@@ -49,16 +40,12 @@ export const toggleTodo = mutation({
     todoId: v.id("todos"),
   },
   handler: async (ctx, args) => {
-    await requireAbility(ctx, "write", "todo");
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new ConvexError("Not authenticated");
-    }
+    const user = await requireAbility(ctx, "write", "todo");
     const todo = await ctx.db.get(args.todoId);
     if (!todo) {
       throw new ConvexError("Todo not found");
     }
-    if (todo.userId !== userId) {
+    if (todo.userId !== user._id) {
       throw new ConvexError("Not authorized to modify this todo");
     }
     await ctx.db.patch(args.todoId, {
@@ -73,16 +60,12 @@ export const deleteTodo = mutation({
     todoId: v.id("todos"),
   },
   handler: async (ctx, args) => {
-    await requireAbility(ctx, "write", "todo");
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new ConvexError("Not authenticated");
-    }
+    const user = await requireAbility(ctx, "write", "todo");
     const todo = await ctx.db.get(args.todoId);
     if (!todo) {
       throw new ConvexError("Todo not found");
     }
-    if (todo.userId !== userId) {
+    if (todo.userId !== user._id) {
       throw new ConvexError("Not authorized to delete this todo");
     }
     await ctx.db.delete(args.todoId);

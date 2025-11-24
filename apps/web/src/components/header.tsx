@@ -1,6 +1,6 @@
-import { useAuthActions } from "@convex-dev/auth/react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/auth/useAuth";
+import { authClient } from "@/lib/auth-client";
 import { Button } from "./ui/button";
 import {
   NavigationMenu,
@@ -11,11 +11,10 @@ import {
 
 export default function Header() {
   const { isAuthenticated, can } = useAuth();
-  const { signOut } = useAuthActions();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
-    await signOut();
+    await authClient.signOut();
     navigate({ to: "/login" });
   };
 
