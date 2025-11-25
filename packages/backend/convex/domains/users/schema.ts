@@ -10,16 +10,19 @@ const userRoleValues = v.union(...Object.values(UserRole).map(v.literal));
 
 export const tables = {
   users: defineTable({
+    // tokenIdentifier from ctx.auth.getUserIdentity() - includes issuer for safety
+    tokenIdentifier: v.string(),
+    // workosUserId = identity.subject, used for webhook sync
+    workosUserId: v.optional(v.string()),
     name: v.optional(v.string()),
     image: v.optional(v.string()),
     email: v.optional(v.string()),
-    emailVerificationTime: v.optional(v.number()),
-    phone: v.optional(v.string()),
-    phoneVerificationTime: v.optional(v.number()),
-    isAnonymous: v.optional(v.boolean()),
-    isActive: v.optional(v.boolean()),
     role: v.optional(userRoleValues),
+    isActive: v.optional(v.boolean()),
+    // Timestamp from WorkOS for conflict resolution
+    workosUpdatedAt: v.optional(v.number()),
   })
-    .index("email", ["email"])
-    .index("phone", ["phone"]),
+    .index("by_token", ["tokenIdentifier"])
+    .index("by_email", ["email"])
+    .index("by_workos_user_id", ["workosUserId"]),
 };

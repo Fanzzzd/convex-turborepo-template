@@ -6,53 +6,69 @@ import {
   can as canFn,
   type Subject,
 } from "@acme/backend/convex/_shared/permissions";
-import { useQuery } from "convex/react";
+import { useAuth as useWorkOSAuth } from "@workos-inc/authkit-react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useEffect, useState } from "react";
 
-type NavigationRoute = "/users" | "/todo" | "/login";
-
+/**
+ * Unified auth hook combining WorkOS authentication with Convex user storage.
+ * Follows official Convex pattern for storing users.
+ */
 export function useAuth() {
-  const session = useQuery(api.domains.users.api.getCurrentUserWithAbilities);
+  // WorkOS authentication
+  const {
+    signIn,
+    signOut,
+    user: workosUser,
+    isLoading: workosLoading,
+  } = useWorkOSAuth();
 
-  const isLoading = session === undefined;
-  const isAuthenticated = !!session?.user;
+  // Convex authentication state
+  const { isLoading: authLoading, isAuthenticated: authReady } =
+    useConvexAuth();
+  const storeUser = useMutation(api.domains.users.api.store);
+  const session = useQuery(api.domains.users.api.current);
 
-  const abilities = session?.abilities ?? ([] as Ability[]);
-  const currentUser = (session?.user ?? null) as Doc<"users"> | null;
+  const [isStoring, setIsStoring] = useState(false);
 
-  const can = (action: Action, subject: Subject) =>
-    canFn(abilities, action, subject);
+  // Determine if we need to store the user
+  const needsStore = authReady && session === null && !isStoring;
 
-  const firstAccessiblePath = () => resolveFirstAccessiblePath(abilities);
+  // Store user when authenticated but not yet in DB
+  useEffect(() => {
+    if (!needsStore) return;
+
+    setIsStoring(true);
+    storeUser()
+      .catch(console.error)
+      .finally(() => setIsStoring(false));
+  }, [needsStore, storeUser]);
+
+  // Loading states:
+  // 1. Auth system is loading
+  // 2. Session query is loading (undefined)
+  // 3. User needs to be stored (null but not yet storing)
+  // 4. Currently storing
+  const isLoading =
+    authLoading || session === undefined || needsStore || isStoring;
+  const isAuthenticated = !isLoading && !!session?.user;
+
+  const user = session?.user as Doc<"users"> | null;
+  const abilities = (session?.abilities ?? []) as Ability[];
 
   return {
+    // Convex user state
     isLoading,
     isAuthenticated,
-    currentUser,
+    currentUser: user,
     abilities,
-    can,
-    firstAccessiblePath,
+    can: (action: Action, subject: Subject) =>
+      canFn(abilities, action, subject),
+    // WorkOS auth actions
+    signIn,
+    signOut,
+    // WorkOS raw state (useful for login page)
+    workosUser,
+    workosLoading,
   };
-}
-
-export function resolveFirstAccessiblePath(
-  abilities: Iterable<Ability> | null | undefined
-): NavigationRoute {
-  if (!abilities) return "/login";
-  const readable = new Set<Subject>();
-  for (const [action, subject] of abilities) {
-    if (action === "read") {
-      readable.add(subject);
-    }
-  }
-  const order: Array<{
-    subject: Subject;
-    path: Exclude<NavigationRoute, "/login">;
-  }> = [
-    { subject: "users", path: "/users" },
-    { subject: "todo", path: "/todo" },
-  ];
-  for (const { subject, path } of order) {
-    if (readable.has(subject)) return path;
-  }
-  return "/login";
 }

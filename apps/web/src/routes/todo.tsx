@@ -1,5 +1,4 @@
 import { api } from "@acme/backend/convex/_generated/api";
-import type { Id } from "@acme/backend/convex/_generated/dataModel";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import { Plus, Trash2 } from "lucide-react";
@@ -28,68 +27,34 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/todo")({
   beforeLoad: guardAbility("todo"),
-  component: TodoComponent,
+  component: TodoPage,
 });
 
-interface Todo {
-  _id: Id<"todos">;
-  _creationTime: number;
-  text: string;
-  completed: boolean;
-  userId: Id<"users">;
-  createdAt: number;
-}
+function TodoPage() {
+  const todos = useQuery(api.domains.todos.api.list);
+  const create = useMutation(api.domains.todos.api.create);
+  const toggle = useMutation(api.domains.todos.api.toggle);
+  const remove = useMutation(api.domains.todos.api.remove);
 
-function TodoComponent() {
-  const todos = useQuery(api.domains.todos.api.getTodos);
-  const createTodo = useMutation(api.domains.todos.api.createTodo);
-  const toggleTodo = useMutation(api.domains.todos.api.toggleTodo);
-  const deleteTodo = useMutation(api.domains.todos.api.deleteTodo);
-
-  const [newTodoText, setNewTodoText] = useState("");
+  const [text, setText] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleCreateTodo = async (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTodoText.trim()) {
-      setError("Todo text cannot be empty");
-      return;
-    }
+    if (!text.trim()) return setError("Text required");
     setIsCreating(true);
     setError(null);
     try {
-      await createTodo({ text: newTodoText });
-      setNewTodoText("");
-      toast.success("Todo created");
+      await create({ text });
+      setText("");
+      toast.success("Created");
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to create todo";
-      setError(message);
-      toast.error(message);
+      const msg = err instanceof Error ? err.message : "Failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsCreating(false);
-    }
-  };
-
-  const handleToggleTodo = async (todoId: Id<"todos">) => {
-    try {
-      await toggleTodo({ todoId });
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to toggle todo";
-      toast.error(message);
-    }
-  };
-
-  const handleDeleteTodo = async (todoId: Id<"todos">) => {
-    try {
-      await deleteTodo({ todoId });
-      toast.success("Todo deleted");
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to delete todo";
-      toast.error(message);
     }
   };
 
@@ -99,14 +64,11 @@ function TodoComponent() {
         <Card>
           <CardHeader>
             <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-4 w-64 mt-2" />
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-12 w-full mb-2" />
+            ))}
           </CardContent>
         </Card>
       </div>
@@ -118,30 +80,26 @@ function TodoComponent() {
       <Card>
         <CardHeader>
           <CardTitle>Todo List</CardTitle>
-          <CardDescription>
-            Manage your tasks and stay organized
-          </CardDescription>
+          <CardDescription>Manage your tasks</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleCreateTodo} className="mb-6">
+          <form onSubmit={handleCreate} className="mb-6">
             <FieldGroup>
               <Field data-invalid={!!error}>
                 <FieldLabel htmlFor="new-todo">New Todo</FieldLabel>
                 <div className="flex gap-2">
                   <Input
                     id="new-todo"
-                    value={newTodoText}
+                    value={text}
                     onChange={(e) => {
-                      setNewTodoText(e.target.value);
+                      setText(e.target.value);
                       setError(null);
                     }}
                     placeholder="Enter a new todo..."
                     disabled={isCreating}
-                    aria-invalid={!!error}
                   />
                   <Button type="submit" disabled={isCreating}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add
+                    <Plus className="h-4 w-4 mr-2" /> Add
                   </Button>
                 </div>
                 {error && <FieldError>{error}</FieldError>}
@@ -152,30 +110,25 @@ function TodoComponent() {
           <div className="space-y-2">
             {todos.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
-                No todos yet. Create your first todo above!
+                No todos yet
               </div>
             ) : (
-              todos.map((todo: Todo, index: number) => (
+              todos.map((todo, i) => (
                 <div key={todo._id}>
                   <div
-                    className={`flex items-center gap-3 p-4 rounded-lg border transition-colors ${
-                      todo.completed
-                        ? "bg-muted/50 border-muted"
-                        : "bg-card hover:bg-accent/50"
-                    }`}
+                    className={`flex items-center gap-3 p-4 rounded-lg border ${todo.completed ? "bg-muted/50" : "hover:bg-accent/50"}`}
                   >
                     <Checkbox
                       checked={todo.completed}
-                      onCheckedChange={() => handleToggleTodo(todo._id)}
-                      className="shrink-0"
+                      onCheckedChange={() =>
+                        toggle({ id: todo._id }).catch((e) =>
+                          toast.error(e.message)
+                        )
+                      }
                     />
                     <div className="flex-1 min-w-0">
                       <div
-                        className={`text-sm ${
-                          todo.completed
-                            ? "line-through text-muted-foreground"
-                            : "text-foreground"
-                        }`}
+                        className={`text-sm ${todo.completed ? "line-through text-muted-foreground" : ""}`}
                       >
                         {todo.text}
                       </div>
@@ -184,7 +137,7 @@ function TodoComponent() {
                           variant={todo.completed ? "secondary" : "outline"}
                           className="text-xs"
                         >
-                          {todo.completed ? "Completed" : "Pending"}
+                          {todo.completed ? "Done" : "Pending"}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
                           {new Date(todo.createdAt).toLocaleDateString()}
@@ -194,13 +147,17 @@ function TodoComponent() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDeleteTodo(todo._id)}
-                      className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                      onClick={() =>
+                        remove({ id: todo._id })
+                          .then(() => toast.success("Deleted"))
+                          .catch((e) => toast.error(e.message))
+                      }
+                      className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  {index < todos.length - 1 && <Separator className="my-2" />}
+                  {i < todos.length - 1 && <Separator className="my-2" />}
                 </div>
               ))
             )}

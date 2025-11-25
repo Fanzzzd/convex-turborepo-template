@@ -4,9 +4,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async ({ context }) => {
-    const session = await context.convex.query(
-      api.domains.users.api.getCurrentUserWithAbilities
-    );
+    const session = await context.convex.query(api.domains.users.api.current);
     const to = getDefaultPath(session?.abilities);
     throw redirect({ to });
   },

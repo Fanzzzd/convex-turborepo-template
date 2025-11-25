@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsersRouteImport } from './routes/users'
 import { Route as TodoRouteImport } from './routes/todo'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as CallbackRouteImport } from './routes/callback'
 import { Route as R403RouteImport } from './routes/403'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -30,6 +31,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CallbackRoute = CallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const R403Route = R403RouteImport.update({
   id: '/403',
   path: '/403',
@@ -44,6 +50,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/403': typeof R403Route
+  '/callback': typeof CallbackRoute
   '/login': typeof LoginRoute
   '/todo': typeof TodoRoute
   '/users': typeof UsersRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/403': typeof R403Route
+  '/callback': typeof CallbackRoute
   '/login': typeof LoginRoute
   '/todo': typeof TodoRoute
   '/users': typeof UsersRoute
@@ -59,21 +67,23 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/403': typeof R403Route
+  '/callback': typeof CallbackRoute
   '/login': typeof LoginRoute
   '/todo': typeof TodoRoute
   '/users': typeof UsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/403' | '/login' | '/todo' | '/users'
+  fullPaths: '/' | '/403' | '/callback' | '/login' | '/todo' | '/users'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/403' | '/login' | '/todo' | '/users'
-  id: '__root__' | '/' | '/403' | '/login' | '/todo' | '/users'
+  to: '/' | '/403' | '/callback' | '/login' | '/todo' | '/users'
+  id: '__root__' | '/' | '/403' | '/callback' | '/login' | '/todo' | '/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   R403Route: typeof R403Route
+  CallbackRoute: typeof CallbackRoute
   LoginRoute: typeof LoginRoute
   TodoRoute: typeof TodoRoute
   UsersRoute: typeof UsersRoute
@@ -102,6 +112,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/callback': {
+      id: '/callback'
+      path: '/callback'
+      fullPath: '/callback'
+      preLoaderRoute: typeof CallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/403': {
       id: '/403'
       path: '/403'
@@ -122,6 +139,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   R403Route: R403Route,
+  CallbackRoute: CallbackRoute,
   LoginRoute: LoginRoute,
   TodoRoute: TodoRoute,
   UsersRoute: UsersRoute,

@@ -8,7 +8,11 @@
     "ios": "expo run:ios",
     "prebuild": "expo prebuild",
     "web": "expo start --web",
-    "lint": "biome check ."
+    "lint": "run-p -c lint:biome check-types",
+    "lint:biome": "biome lint .",
+    "check": "run-p -c check:biome check-types",
+    "check:biome": "biome check --write .",
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@acme/backend": "workspace:*",
@@ -44,6 +48,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.26.10",
+    "npm-run-all2": "catalog:",
     "@types/react": "~19.1.10",
     "tailwindcss": "^3.4.17",
     "typescript": "~5.8.2"

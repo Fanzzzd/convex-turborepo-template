@@ -2,8 +2,9 @@ packages:
   - apps/*
   - packages/*
 catalog:
-  convex: ^1.29.0
+  convex: ^1.29.3
   "@convex-dev/auth": ^0.0.90
   "@convex-dev/resend": ^0.1.13
   "@types/node": ^22.13.13
   typescript: ^5.8.3
+  npm-run-all2: ^8.0.4
