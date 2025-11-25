@@ -1,5 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { useAuth as useWorkOSAuth } from "@workos-inc/authkit-react";
+import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/auth/useAuth";
 import { Button } from "./ui/button";
 import {
@@ -10,13 +9,10 @@ import {
 } from "./ui/navigation-menu";
 
 export default function Header() {
-  const { isAuthenticated, can } = useAuth();
-  const { signOut } = useWorkOSAuth();
-  const navigate = useNavigate();
+  const { isAuthenticated, can, signOut } = useAuth();
 
   const handleSignOut = async () => {
     await signOut();
-    navigate({ to: "/login" });
   };
 
   return (

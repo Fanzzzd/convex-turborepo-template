@@ -2,10 +2,9 @@
   "name": "@acme/backend",
   "version": "1.0.0",
   "scripts": {
-    "dev": "convex dev --local",
+    "dev": "convex dev",
     "dev:setup": "convex dev --configure --until-success",
-    "lint": "biome check .",
-    "seed": "convex run seed:init"
+    "lint": "biome check . "
   },
   "author": "",
   "license": "ISC",
@@ -15,8 +14,8 @@
     "typescript": "catalog:"
   },
   "dependencies": {
-    "@convex-dev/auth": "catalog:",
     "@convex-dev/resend": "catalog:",
+    "@workos-inc/node": "^7.74.2",
     "convex": "catalog:"
   }
 }

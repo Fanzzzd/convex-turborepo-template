@@ -1,7 +1,7 @@
-import { ConvexProviderWithAuthKit } from "@convex-dev/workos";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { AuthKitProvider, useAuth } from "@workos-inc/authkit-react";
-import { ConvexReactClient, useConvexAuth } from "convex/react";
+import { ConvexProviderWithAuth, ConvexReactClient } from "convex/react";
+import { useCallback, useMemo } from "react";
 import ReactDOM from "react-dom/client";
 import { Spinner } from "./components/ui/spinner";
 import { routeTree } from "./routeTree.gen";
@@ -27,18 +27,30 @@ declare module "@tanstack/react-router" {
   }
 }
 
-function AuthReadyRouter() {
-  const { isLoading } = useConvexAuth();
+// Custom hook to bridge WorkOS auth with Convex
+function useAuthFromWorkOS() {
+  const { user, isLoading, getAccessToken } = useAuth();
 
-  if (isLoading) {
-    return (
-      <div className="flex h-svh items-center justify-center">
-        <Spinner className="size-6" />
-      </div>
-    );
-  }
+  const fetchAccessToken = useCallback(
+    async (_args: { forceRefreshToken: boolean }) => {
+      try {
+        const token = await getAccessToken();
+        return token ?? null;
+      } catch {
+        return null;
+      }
+    },
+    [getAccessToken]
+  );
 
-  return <RouterProvider router={router} />;
+  return useMemo(
+    () => ({
+      isLoading: isLoading ?? false,
+      isAuthenticated: !!user,
+      fetchAccessToken,
+    }),
+    [isLoading, user, fetchAccessToken]
+  );
 }
 
 function App() {
@@ -47,9 +59,9 @@ function App() {
       clientId={import.meta.env.VITE_WORKOS_CLIENT_ID}
       redirectUri={import.meta.env.VITE_WORKOS_REDIRECT_URI}
     >
-      <ConvexProviderWithAuthKit client={convex} useAuth={useAuth}>
-        <AuthReadyRouter />
-      </ConvexProviderWithAuthKit>
+      <ConvexProviderWithAuth client={convex} useAuth={useAuthFromWorkOS}>
+        <RouterProvider router={router} />
+      </ConvexProviderWithAuth>
     </AuthKitProvider>
   );
 }

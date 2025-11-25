@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@acme/backend": "workspace:*",
-    "@convex-dev/auth": "catalog:",
     "@convex-dev/workos": "^0.0.1",
     "@hookform/resolvers": "^5.1.1",
     "@radix-ui/react-alert-dialog": "^1.1.15",

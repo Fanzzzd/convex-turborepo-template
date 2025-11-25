@@ -16,7 +16,6 @@
     "dev:web": "turbo -F web dev",
     "dev:server": "turbo -F @acme/backend dev",
     "dev:setup": "turbo -F @acme/backend dev:setup",
-    "convex:seed": "pnpm -C packages/backend seed",
     "convex:reset": "node scripts/convex-reset.mjs"
   },
   "devDependencies": {

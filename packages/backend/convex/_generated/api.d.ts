@@ -10,13 +10,12 @@
 
 import type * as _shared_auth from "../_shared/auth.js";
 import type * as _shared_permissions from "../_shared/permissions.js";
-import type * as auth from "../auth.js";
+import type * as _shared_workos from "../_shared/workos.js";
 import type * as domains_todos_api from "../domains/todos/api.js";
 import type * as domains_users_api from "../domains/users/api.js";
-import type * as domains_users_service from "../domains/users/service.js";
+import type * as domains_users_webhooks from "../domains/users/webhooks.js";
 import type * as healthCheck from "../healthCheck.js";
 import type * as http from "../http.js";
-import type * as seed from "../seed.js";
 
 import type {
   ApiFromModules,
@@ -27,13 +26,12 @@ import type {
 declare const fullApi: ApiFromModules<{
   "_shared/auth": typeof _shared_auth;
   "_shared/permissions": typeof _shared_permissions;
-  auth: typeof auth;
+  "_shared/workos": typeof _shared_workos;
   "domains/todos/api": typeof domains_todos_api;
   "domains/users/api": typeof domains_users_api;
-  "domains/users/service": typeof domains_users_service;
+  "domains/users/webhooks": typeof domains_users_webhooks;
   healthCheck: typeof healthCheck;
   http: typeof http;
-  seed: typeof seed;
 }>;
 
 /**

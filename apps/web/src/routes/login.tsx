@@ -1,8 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useAuth as useWorkOSAuth } from "@workos-inc/authkit-react";
-import { AlertCircle } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useAuth as useConvexAuth } from "@/auth/useAuth";
+import { useEffect } from "react";
+import { useAuth } from "@/auth/useAuth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,50 +9,33 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 
 export const Route = createFileRoute("/login")({
-  component: LoginComponent,
+  component: LoginPage,
 });
 
-function LoginComponent() {
+function LoginPage() {
   const navigate = useNavigate();
-  const {
-    user: workosUser,
-    signIn,
-    isLoading: workosLoading,
-  } = useWorkOSAuth();
-  const { isAuthenticated, isLoading: convexLoading } = useConvexAuth();
+  const { isAuthenticated, isLoading, signIn, workosUser, workosLoading } =
+    useAuth();
   const search = Route.useSearch() as { from?: string };
-  const [showError, setShowError] = useState(false);
 
+  // Redirect when authenticated
   useEffect(() => {
-    if (workosUser) {
-      if (isAuthenticated) {
-        const fallback = "/users";
-        type KnownTo = "/" | "/login" | "/users" | "/todo" | "/403";
-        const isKnownTo = (p: unknown): p is KnownTo =>
-          typeof p === "string" &&
-          ["/", "/login", "/users", "/todo", "/403"].includes(p);
-        const to = isKnownTo(search?.from) ? search.from : fallback;
-        navigate({ to });
-      } else if (!convexLoading) {
-        setShowError(true);
-      }
+    if (isAuthenticated) {
+      const from = search?.from;
+      const to = from === "/users" || from === "/todo" ? from : "/todo";
+      navigate({ to });
     }
-  }, [workosUser, isAuthenticated, convexLoading, navigate, search?.from]);
+  }, [isAuthenticated, navigate, search?.from]);
+
+  // Show loading while WorkOS user exists but Convex is syncing
+  const showLoading = workosUser && isLoading;
 
   return (
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm space-y-4">
-        {showError && (
-          <div className="bg-destructive/15 text-destructive p-3 rounded-md flex items-center gap-2 text-sm">
-            <AlertCircle className="h-4 w-4" />
-            <span>
-              Your account was not found in the system. Please contact an
-              administrator.
-            </span>
-          </div>
-        )}
+      <div className="w-full max-w-sm">
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl">Login</CardTitle>
@@ -63,13 +44,19 @@ function LoginComponent() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button
-              className="w-full"
-              onClick={() => signIn()}
-              disabled={workosLoading}
-            >
-              {workosLoading ? "Loading..." : "Sign in with WorkOS"}
-            </Button>
+            {showLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Spinner className="size-6" />
+              </div>
+            ) : (
+              <Button
+                className="w-full"
+                onClick={() => signIn()}
+                disabled={workosLoading}
+              >
+                {workosLoading ? "Loading..." : "Sign in with WorkOS"}
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>

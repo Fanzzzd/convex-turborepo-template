@@ -12,9 +12,7 @@ type GuardArgs = {
 export const guardAbility =
   (subject: Subject, action: Action = "read") =>
   async ({ context, location }: GuardArgs) => {
-    const session = await context.convex.query(
-      api.domains.users.api.getCurrentUserWithAbilities
-    );
+    const session = await context.convex.query(api.domains.users.api.current);
 
     const isAuthenticated = !!session?.user;
 
