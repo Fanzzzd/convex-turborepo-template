@@ -2,6 +2,7 @@ import type { UserDeletedEvent, UserUpdatedEvent } from "@workos-inc/node";
 import { httpRouter } from "convex/server";
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
+import { env } from "./_shared/env";
 
 /** Union type for user webhook events we handle */
 type WorkOsUserEvent = UserUpdatedEvent | UserDeletedEvent;
@@ -15,11 +16,7 @@ http.route({
   path: "/webhooks/workos-users",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
-    const secret = process.env.WORKOS_WEBHOOK_SECRET;
-    if (!secret) {
-      console.error("WORKOS_WEBHOOK_SECRET not configured");
-      return new Response("Webhook secret not configured", { status: 500 });
-    }
+    const secret = env.WORKOS_WEBHOOK_SECRET;
 
     // Get signature from headers
     const signature = request.headers.get("workos-signature");

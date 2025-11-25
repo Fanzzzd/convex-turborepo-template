@@ -1,4 +1,6 @@
-const clientId = process.env.WORKOS_CLIENT_ID;
+import { env } from "./_shared/env";
+
+const clientId = env.WORKOS_CLIENT_ID;
 
 const authConfig = {
   providers: [

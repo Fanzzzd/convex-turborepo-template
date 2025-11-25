@@ -9,6 +9,7 @@
  */
 
 import type * as _shared_auth from "../_shared/auth.js";
+import type * as _shared_env from "../_shared/env.js";
 import type * as _shared_permissions from "../_shared/permissions.js";
 import type * as _shared_workos from "../_shared/workos.js";
 import type * as domains_todos_api from "../domains/todos/api.js";
@@ -25,6 +26,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "_shared/auth": typeof _shared_auth;
+  "_shared/env": typeof _shared_env;
   "_shared/permissions": typeof _shared_permissions;
   "_shared/workos": typeof _shared_workos;
   "domains/todos/api": typeof domains_todos_api;

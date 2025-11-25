@@ -3,6 +3,7 @@
 import { WorkOS } from "@workos-inc/node";
 import { v } from "convex/values";
 import { type ActionCtx, internalAction } from "../_generated/server";
+import { env } from "./env";
 
 // Verify webhook signature using the official SDK in a Node.js environment
 export const verifyWebhook = internalAction({
@@ -12,7 +13,7 @@ export const verifyWebhook = internalAction({
     secret: v.string(),
   },
   handler: async (_ctx: ActionCtx, { payload, signature, secret }) => {
-    const workos = new WorkOS(process.env.WORKOS_API_KEY);
+    const workos = new WorkOS(env.WORKOS_API_KEY);
 
     try {
       const event = await workos.webhooks.constructEvent({
