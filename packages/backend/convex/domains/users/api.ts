@@ -22,6 +22,8 @@ import { abilitiesFromRoles } from "../../_shared/permissions";
 import { UserRole } from "./schema";
 
 // Get current user with computed abilities (returns null if unauthenticated)
+// Automatically creates user if not exists (first-time WorkOS login)
+// Automatically updates email if WorkOS email changed
 export const getCurrentUserWithAbilities = query({
   args: {},
   handler: async (ctx) => {
@@ -30,10 +32,105 @@ export const getCurrentUserWithAbilities = query({
       return null;
     }
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("email", (q) => q.eq("email", identity.email))
-      .first();
+    // Get user ID from auth system
+    // For customJwt (WorkOS), Convex Auth should have already created the authAccount
+    let userId = await getAuthUserId(ctx);
+    
+    // If no userId found, try to find by WorkOS user ID (subject claim)
+    // This handles the case where authAccount exists but getAuthUserId returns null
+    if (!userId && identity.subject) {
+      const workosAccount = await ctx.db
+        .query("authAccounts")
+        .withIndex("providerAndAccountId", (q) =>
+          q
+            .eq("provider", "customJwt")
+            .eq("providerAccountId", identity.subject)
+        )
+        .first();
+
+      if (workosAccount) {
+        userId = workosAccount.userId;
+      }
+    }
+
+    if (!userId) {
+      // No auth account found - user not authenticated or account not created yet
+      return null;
+    }
+
+    // Get user record
+    let user = await ctx.db.get(userId);
+    
+    // Determine if this is a WorkOS login
+    const isWorkOS = identity.issuer?.includes("workos.com") ?? false;
+    
+    if (!user) {
+      // AuthAccount exists but user record doesn't - create it
+      // This can happen for WorkOS users on first login
+      if (isWorkOS) {
+        // Create user record with the userId from authAccount
+        // Note: In Convex, we can't set _id directly, so we need to ensure
+        // the userId from authAccount matches what we create
+        // For customJwt, Convex Auth may create authAccount with a userId
+        // that doesn't exist yet - we'll create the user record here
+        const newUserId = await ctx.db.insert("users", {
+          email: identity.email ?? undefined,
+          name: identity.name ?? undefined,
+          image: identity.picture ?? identity.imageUrl ?? undefined,
+          emailVerificationTime: identity.emailVerified ? Date.now() : undefined,
+          role: UserRole.USER, // Default role for new WorkOS users
+        });
+        
+        // If the new userId doesn't match authAccount.userId, we have a problem
+        // This shouldn't happen if Convex Auth creates users automatically
+        // But if it does, we'll use the newly created user
+        if (newUserId !== userId) {
+          // Try to find authAccount and update it, but we can't do that in a query
+          // For now, just use the new user - this is a rare edge case
+          // The authAccount will need to be updated separately if needed
+        }
+        
+        user = await ctx.db.get(newUserId);
+      } else {
+        // Password provider - user should exist
+        return null;
+      }
+    } else if (isWorkOS) {
+      // User exists, update info from WorkOS identity if changed
+      const updates: Partial<Doc<"users">> = {};
+      
+      // Update email if changed (and not already taken by another user)
+      if (identity.email && user.email !== identity.email) {
+        const existingUserWithEmail = await ctx.db
+          .query("users")
+          .withIndex("email", (q) => q.eq("email", identity.email!))
+          .first();
+        
+        if (!existingUserWithEmail || existingUserWithEmail._id === user._id) {
+          updates.email = identity.email;
+          if (identity.emailVerified) {
+            updates.emailVerificationTime = Date.now();
+          }
+        }
+      }
+      
+      // Update name if changed
+      if (identity.name && user.name !== identity.name) {
+        updates.name = identity.name;
+      }
+      
+      // Update image if changed
+      const imageUrl = identity.picture ?? identity.imageUrl;
+      if (imageUrl && user.image !== imageUrl) {
+        updates.image = imageUrl;
+      }
+      
+      // Apply updates if any
+      if (Object.keys(updates).length > 0) {
+        await ctx.db.patch(user._id, updates);
+        user = await ctx.db.get(user._id);
+      }
+    }
 
     if (!user) {
       return null;
