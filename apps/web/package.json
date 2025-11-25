@@ -8,7 +8,10 @@
     "build": "vite build",
     "serve": "vite preview",
     "start": "vite",
-    "lint": "biome check .",
+    "lint": "run-p -c lint:biome check-types",
+    "lint:biome": "biome lint .",
+    "check": "run-p -c check:biome check-types",
+    "check:biome": "biome check --write .",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
@@ -51,6 +54,8 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@acme/typescript-config": "workspace:*",
+    "npm-run-all2": "catalog:",
     "@tanstack/react-router-devtools": "^1.114.27",
     "@tanstack/router-plugin": "^1.114.27",
     "@types/node": "catalog:",
